@@ -21,9 +21,15 @@ public class KafkaConnectorStreaming {
         this.topicNameOutput = topicNameOutput;
         this.topicNameSource2 = source2TopicName;
     }
-    String bootstrapServers =  "localhost:9092";
+
+    //		bootstrap servers URL: localhost:9092
+
+
 
      public void kafkaConnectorLearning(StreamExecutionEnvironment env) {
+//        For docker this should be kafka:9093 for local flink it will be localhost:9092
+         String bootstrapServers =  "kafka:9093";
+
          KafkaSource<String> source = KafkaSource.<String>builder()
                  .setBootstrapServers(bootstrapServers)
                  .setTopics(topicNameInput)
