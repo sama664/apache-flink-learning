@@ -70,6 +70,7 @@ public class KafkaConnectorStreaming {
 
          stream.print();
          stream2.print();
+         logger.info("this stream started: "+stream.print()+ " and second stream :"+stream2.print());
 
 //         Need implements join here :
          DataStream<String> joinedStream = stream.join(stream2)
@@ -83,6 +84,7 @@ public class KafkaConnectorStreaming {
                      }
                  });
          joinedStream.print();
+         logger.info("Joined Stream with Windowing Started"+joinedStream.print());
 
          stream.keyBy(order -> parseOrderId(order))
                  .intervalJoin(stream2.keyBy(shipment -> parseOrderId(shipment)))
@@ -95,7 +97,7 @@ public class KafkaConnectorStreaming {
                  })
                  .print();
 
-         logger.info("Kafka Connector Streaming Job Started");
+         logger.info("Kafka Connector Streaming Job Started"+joinedStream);
          // Split up the lines in pairs (2-tuples) containing: (word,1)
 //         DataStream<String> counts = text.flatMap(new Tokenizer())
 //                 // Group by the tuple field "0" and sum up tuple field "1"
@@ -110,6 +112,8 @@ public class KafkaConnectorStreaming {
      }
     private static String parseOrderId(String json) {
         // Dummy parser: Implement actual JSON extraction logic here
+        Logger log = LoggerFactory.getLogger(KafkaConnectorStreaming.class);
+        log.info("Parsing order ID from JSON: " + json);
         return json.split(",")[0];
     }
 
