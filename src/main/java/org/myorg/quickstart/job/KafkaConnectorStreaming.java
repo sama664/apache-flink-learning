@@ -14,6 +14,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Collector;
 import org.myorg.quickstart.model.Person;
@@ -67,9 +68,9 @@ public class KafkaConnectorStreaming {
          DataStream<String> stream = env.fromSource(source, WatermarkStrategy.noWatermarks(), "Kafka Source1");
          DataStream<String> stream2 = env.fromSource(source2, WatermarkStrategy.noWatermarks(), "Kafka Source2");
 
-         stream.print();
-         stream2.print();
-         logger.info("this stream started: "+stream.print()+ " and second stream :"+stream2.print());
+//         stream.print();
+//         stream2.print();
+//         logger.info("this stream started: "+stream.print()+ " and second stream :"+stream2.print());
 
 //         Need implements join here :
          DataStream<String> joinedStream = stream.join(stream2)
@@ -83,18 +84,19 @@ public class KafkaConnectorStreaming {
                  .equalTo(new KeySelector<String, String>() {
              @Override
              public String getKey(String value) {
-                 return value.split("::")[0]; // Key on the first part of the string
+                 return value.split(":")[0]; // Key on the first part of the string
              }
          })
-                     .window(SlidingEventTimeWindows.of(Time.seconds(30), Time.seconds(10)))
+                 .window(TumblingEventTimeWindows.of(Time.seconds(1)))
+//                     .window(SlidingEventTimeWindows.of(Time.seconds(30), Time.seconds(10)))
                  .apply(new JoinFunction<String, String, String>() {
                      @Override
                      public String join(String order, String shipment) {
                          return "Joined: " + order + " WITH " + shipment;
                      }
                  });
-         joinedStream.print();
-         logger.info("Joined Stream with Windowing Started"+joinedStream.print());
+//         joinedStream.print();
+//         logger.info("Joined Stream with Windowing Started"+joinedStream.print());
 //         Setting up kafka searilizer
 
          KafkaRecordSerializationSchema<String> serializer = KafkaRecordSerializationSchema.builder()
