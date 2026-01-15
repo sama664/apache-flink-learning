@@ -51,7 +51,7 @@ public class KafkaConnectorStreaming {
 
          KafkaSource<String> source2 = KafkaSource.<String>builder()
                  .setBootstrapServers(bootstrapServers)
-                 .setTopics(topicNameInput)
+                 .setTopics(topicNameSource2)
                  .setGroupId("my-group-source2")
                  .setStartingOffsets(OffsetsInitializer.earliest())
                  .setValueOnlyDeserializer(new SimpleStringSchema())
@@ -86,7 +86,7 @@ public class KafkaConnectorStreaming {
                  return value.split("::")[0]; // Key on the first part of the string
              }
          })
-                     .window(SlidingEventTimeWindows.of(Time.hours(4), Time.minutes(30)))
+                     .window(SlidingEventTimeWindows.of(Time.seconds(30), Time.seconds(10)))
                  .apply(new JoinFunction<String, String, String>() {
                      @Override
                      public String join(String order, String shipment) {
