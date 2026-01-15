@@ -3,6 +3,8 @@ package org.myorg.quickstart.job;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.connector.kafka.source.KafkaSource;
@@ -55,10 +57,7 @@ public class KafkaConnectorStreaming {
                  .setValueOnlyDeserializer(new SimpleStringSchema())
                  .build();
 
-         KafkaRecordSerializationSchema<String> serializer = KafkaRecordSerializationSchema.builder()
-                 .setValueSerializationSchema(new SimpleStringSchema())
-                 .setTopic(topicNameOutput)
-                 .build();
+
 //         KafkaSink<String> sink = KafkaSink.<String>builder()
 //                 .setBootstrapServers(bootstrapServers)
 //                 .setRecordSerializer(serializer)
@@ -74,8 +73,19 @@ public class KafkaConnectorStreaming {
 
 //         Need implements join here :
          DataStream<String> joinedStream = stream.join(stream2)
-                 .where(order -> parseOrderId(order))
-                 .equalTo(shipment -> parseOrderId(shipment))
+//                 Set where condition
+                 .where(new KeySelector<String, String>() {
+             @Override
+             public String getKey(String value) {
+                 return value.split(":")[0]; // Key on the first part of the string
+             }
+         })
+                 .equalTo(new KeySelector<String, String>() {
+             @Override
+             public String getKey(String value) {
+                 return value.split("::")[0]; // Key on the first part of the string
+             }
+         })
                      .window(SlidingEventTimeWindows.of(Time.hours(4), Time.minutes(30)))
                  .apply(new JoinFunction<String, String, String>() {
                      @Override
@@ -85,29 +95,25 @@ public class KafkaConnectorStreaming {
                  });
          joinedStream.print();
          logger.info("Joined Stream with Windowing Started"+joinedStream.print());
+//         Setting up kafka searilizer
 
-         stream.keyBy(order -> parseOrderId(order))
-                 .intervalJoin(stream2.keyBy(shipment -> parseOrderId(shipment)))
-                 .between(Time.minutes(0), Time.hours(4))
-                 .process(new ProcessJoinFunction<String, String, String>() {
-                     @Override
-                     public void processElement(String order, String shipment, Context ctx, Collector<String> out) {
-                         out.collect("Joined: " + order + " WITH " + shipment);
-                     }
-                 })
-                 .print();
+         KafkaRecordSerializationSchema<String> serializer = KafkaRecordSerializationSchema.builder()
+                 .setValueSerializationSchema(new SimpleStringSchema())
+                 .setTopic(topicNameOutput)
+                 .build();
 
          logger.info("Kafka Connector Streaming Job Started"+joinedStream);
-         // Split up the lines in pairs (2-tuples) containing: (word,1)
-//         DataStream<String> counts = text.flatMap(new Tokenizer())
-//                 // Group by the tuple field "0" and sum up tuple field "1"
-//                 .keyBy(value -> value.f0)
-//                 .sum(1)
-//                 .flatMap(new Reducer());
+
+         KafkaSink<String> sink = KafkaSink.<String>builder()
+                 .setBootstrapServers(bootstrapServers)
+                 .setRecordSerializer(serializer)
+                 // Set delivery guarantee (e.g., at-least-once or exactly-once)
+                 .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
+                 .build();
 ////
 ////         // Add the sink to so results
 ////         // are written to the outputTopic
-//         counts.sinkTo(sink);
+         joinedStream.sinkTo(sink);
 
      }
     private static String parseOrderId(String json) {
